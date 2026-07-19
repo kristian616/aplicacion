@@ -1,45 +1,20 @@
 const express = require('express');
-const path = require('path');
 const app = express();
-app.use(express.json());
 
-// Novedad: Le decimos al servidor que comparta los archivos visuales de la carpeta "public"
-app.use(express.static(path.join(__dirname, 'public')));
+// CONFIGURACIONES DE MIDDLEWARE
+app.use(express.json()); // Para leer JSON (rutas de API)
+app.use(express.urlencoded({ extended: true })); // Para leer formularios HTML (Login)
+app.use(express.static('public')); // Para servir tu carpeta pública (HTML, CSS)
 
-/**
- * Endpoint de Salud (Health Check) - Requisito Avance #5
- * Retorna el estado operativo actual del sistema.
- * @returns {Object} JSON con estado y marca de tiempo.
- */
-app.get('/health', (req, res) => {
-    res.status(200).json({ 
-        status: 'ok', 
-        timestamp: new Date().toISOString() 
-    });
-});
-
-/**
- * Función crítica de negocio: Valida si un toque tiene todos sus datos.
- * Maneja errores con elegancia usando try/catch.
- * @param {Object} toque - Objeto con los datos del toque musical.
- * @returns {boolean} True si es válido, lanza error si no lo es.
- */
-function validarToqueDefensivo(toque) {
-    try {
-        if (!toque.nombre || !toque.tempo) {
-            throw new Error("Estructura de mensaje inválida: Faltan datos críticos");
-        }
-        if (toque.tempo < 0) {
-            throw new Error("El tempo no puede ser negativo");
-        }
-        return true;
-    } catch (error) {
-        const fecha = new Date().toISOString().split('T')[0];
-        console.error(`[ERROR] [${fecha}]: ${error.message}`);
-        return false;
-    }
+// LÓGICA DE NEGOCIO (Validación para la UNEFA)
+function validarToqueDefensivo(datos) {
+    if (!datos || typeof datos !== 'object') return false;
+    if (!datos.coordenadaX || !datos.coordenadaY || !datos.tipoGolpe) return false;
+    if (typeof datos.coordenadaX !== 'number' || typeof datos.coordenadaY !== 'number') return false;
+    return true;
 }
 
+// RUTA 1: Procesamiento de Toques (Avance #4)
 app.post('/api/toques', (req, res) => {
     const esValido = validarToqueDefensivo(req.body);
     if (esValido) {
@@ -49,6 +24,26 @@ app.post('/api/toques', (req, res) => {
     }
 });
 
+// RUTA 2: Sistema de Inicio de Sesión (Nueva función)
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+
+    // Lógica de validación
+    if (username === 'admin' && password === '1234') {
+        // Redirige al usuario al index.html si la clave es correcta
+        res.redirect('/index.html'); 
+    } else {
+        // Si falla, le da la opción de volver a intentar
+        res.send(`
+            <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+                <h1 style="color: red;">Acceso Denegado</h1>
+                <p>Usuario o contraseña incorrectos.</p>
+                <a href="/login.html">Volver a intentar</a>
+            </div>
+        `);
+    }
+});
+// CONFIGURACIÓN DEL PUERTO Y ARRANQUE SEGURO
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
     app.listen(PORT, () => {
