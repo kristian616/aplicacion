@@ -1,11 +1,12 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const { v4: uuidv4 } = require('uuid'); // Necesitarás instalar uuid: npm install uuid
+const { v4: uuidv4 } = require('uuid');
 const app = express();
 
+// --- MIDDLEWARES NECESARIOS ---
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true })); // CRÍTICO: Esto soluciona el Cannot POST /login
 
 // --- MIDDLEWARE DE TRAZABILIDAD (Correlation ID) ---
 app.use((req, res, next) => {
@@ -19,11 +20,17 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// --- RUTA PRIORITARIA: LOGIN ---
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+// --- RUTA: LOGIN (Procesamiento) ---
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+    if (username === 'admin' && password === '1234') {
+        res.redirect('/index.html');
+    } else {
+        res.status(401).send('Credenciales incorrectas. <a href="/">Volver</a>');
+    }
 });
 
+// --- SERVIR ARCHIVOS ESTÁTICOS ---
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- API: Obtener lista de toques ---
@@ -42,9 +49,7 @@ app.get('/api/toques', (req, res) => {
 app.post('/api/toques', (req, res) => {
     const { coordenadaX, coordenadaY, tipoGolpe } = req.body;
     
-    // Validación estricta (BlueTeam)
-    if (typeof coordenadaX !== 'number' || typeof coordenadaY !== 'number' || typeof tipoGolpe !== 'string' || tipoGolpe.length > 50) {
-        console.warn(JSON.stringify({ level: 'warn', correlationId: req.correlationId, message: 'Intento de entrada maliciosa o inválida' }));
+    if (typeof coordenadaX !== 'number' || typeof coordenadaY !== 'number' || typeof tipoGolpe !== 'string') {
         return res.status(400).json({ error: "Datos inválidos. Reporte el código: " + req.correlationId });
     }
 
@@ -59,5 +64,5 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Sistema UNEFA corriendo en: http://localhost:${PORT}`);
+    console.log(`Sistema UNEFA corriendo en puerto: ${PORT}`);
 });
