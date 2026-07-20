@@ -8,11 +8,12 @@
     "doc": "jsdoc server.js -d docs"
   },
   "dependencies": {
-    "express": "^4.21.0"
+    "express": "^4.22.2",
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "jest": "^29.7.0",
-    "supertest": "^7.0.0",
-    "jsdoc": "^4.0.0"
+    "jsdoc": "^4.0.0",
+    "supertest": "^7.0.0"
   }
 }

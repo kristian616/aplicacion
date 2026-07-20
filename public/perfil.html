@@ -42,39 +42,26 @@
 </nav>
 
     <main>
-        <header>
-            <h1>Bienvenido al Repositorio Digital</h1>
-            <div id="date">Coro, Julio 2026</div>
-        </header>
-
-        <div class="card">
-            <h3>Toques Militares Recientes</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nombre del Toque</th>
-                        <th>Familia</th>
-                        <th>Estado</th>
-                        <th>Acción</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Marcha N°1 - Ceremonial</td>
-                        <td>Percusión</td>
-                        <td>Disponible</td>
-                        <td><a href="#" class="btn-play">Ver Partitura</a></td>
-                    </tr>
-                    <tr>
-                        <td>Toque de Bandera</td>
-                        <td>Vientos</td>
-                        <td>Disponible</td>
-                        <td><a href="#" class="btn-play">Ver Partitura</a></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </main>
+    <header>
+        <h1>Mi Perfil</h1>
+    </header>
+    <div class="card">
+        <h3>Información del Integrante</h3>
+        <form style="display: grid; gap: 15px; max-width: 400px;">
+            <label>Nombre Completo:</label>
+            <input type="text" value="Ej: Angel Chirinos" disabled style="padding: 10px;">
+            
+            <label>Instrumento:</label>
+            <input type="text" value="Ej: Tambor Mayor" style="padding: 10px;">
+            
+            <label>Progreso de Aprendizaje:</label>
+            <progress value="75" max="100" style="width: 100%; height: 20px;"></progress>
+            <small>75% de los toques memorizados.</small>
+            
+            <button type="button" style="background: #002d72; color: white; border: none; padding: 10px; cursor: pointer;">Guardar Cambios</button>
+        </form>
+    </div>
+</main>
 
 </body>
 </html>

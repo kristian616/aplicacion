@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Repositorio - UNEFA</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background-color: #002d72; color: white; }
+        .btn-play { 
+            display: inline-block; background-color: #002d72; color: white; 
+            padding: 8px 15px; text-decoration: none; border-radius: 4px; font-size: 0.9rem;
+        }
+        .btn-play:hover { background-color: #001f52; }
+    </style>
+</head>
+<body>
+
+    <main>
+        <h1>Repositorio de Partituras</h1>
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Familia</th>
+                        <th>Tonalidad</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-toques">
+                    <!-- Los datos se cargarán aquí automáticamente -->
+                </tbody>
+            </table>
+        </div>
+        <br>
+        <a href="/index.html">Volver al Panel</a>
+    </main>
+
+    <script>
+        // Esta función conecta con el servidor y llena la tabla
+        fetch('/api/toques')
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.getElementById('tabla-toques');
+                tbody.innerHTML = ''; // Limpiar tabla antes de llenar
+                
+                data.forEach(t => {
+                    const fila = `<tr>
+                        <td>${t.nombre}</td>
+                        <td>${t.familia}</td>
+                        <td>${t.tonalidad}</td>
+                        <td><a href="/partituras/${t.archivo}" class="btn-play" target="_blank">Abrir</a></td>
+                    </tr>`;
+                    tbody.innerHTML += fila;
+                });
+            })
+            .catch(err => console.error('Error al cargar toques:', err));
+    </script>
+</body>
+</html>

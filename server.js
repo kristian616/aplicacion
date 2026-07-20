@@ -1,55 +1,63 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const { v4: uuidv4 } = require('uuid'); // Necesitarás instalar uuid: npm install uuid
 const app = express();
 
-// CONFIGURACIONES DE MIDDLEWARE
-app.use(express.json()); // Para leer JSON (rutas de API)
-app.use(express.urlencoded({ extended: true })); // Para leer formularios HTML (Login)
-app.use(express.static('public')); // Para servir tu carpeta pública (HTML, CSS)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// LÓGICA DE NEGOCIO (Validación para la UNEFA)
-function validarToqueDefensivo(datos) {
-    if (!datos || typeof datos !== 'object') return false;
-    if (!datos.coordenadaX || !datos.coordenadaY || !datos.tipoGolpe) return false;
-    if (typeof datos.coordenadaX !== 'number' || typeof datos.coordenadaY !== 'number') return false;
-    return true;
-}
-
-// RUTA 1: Procesamiento de Toques (Avance #4)
-app.post('/api/toques', (req, res) => {
-    const esValido = validarToqueDefensivo(req.body);
-    if (esValido) {
-        res.status(201).json({ mensaje: "Toque procesado correctamente" });
-    } else {
-        res.status(400).json({ error: "Fallo en el procesamiento de datos" });
-    }
+// --- MIDDLEWARE DE TRAZABILIDAD (Correlation ID) ---
+app.use((req, res, next) => {
+    req.correlationId = uuidv4();
+    res.setHeader('X-Correlation-ID', req.correlationId);
+    next();
 });
 
-// RUTA 2: Sistema de Inicio de Sesión (Nueva función)
-app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-
-    // Lógica de validación
-    if (username === 'admin' && password === '1234') {
-        // Redirige al usuario al index.html si la clave es correcta
-        res.redirect('/index.html'); 
-    } else {
-        // Si falla, le da la opción de volver a intentar
-        res.send(`
-            <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
-                <h1 style="color: red;">Acceso Denegado</h1>
-                <p>Usuario o contraseña incorrectos.</p>
-                <a href="/login.html">Volver a intentar</a>
-            </div>
-        `);
-    }
+// --- RUTA DE SALUD (Health Check) ---
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
-// CONFIGURACIÓN DEL PUERTO Y ARRANQUE SEGURO
-const PORT = process.env.PORT || 3000;
-if (require.main === module) {
-    app.listen(PORT, () => {
-        console.log(`Servidor corriendo en el puerto ${PORT}`);
-        console.log(`Visita http://localhost:${PORT} para ver la aplicación`);
+
+// --- RUTA PRIORITARIA: LOGIN ---
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+// --- API: Obtener lista de toques ---
+app.get('/api/toques', (req, res) => {
+    const filePath = path.join(__dirname, 'toques.json');
+    fs.readFile(filePath, 'utf8', (err, data) => {
+        if (err) {
+            console.error(JSON.stringify({ level: 'error', correlationId: req.correlationId, message: 'No se pudo leer toques.json' }));
+            return res.status(500).json({ error: "Ocurrió un error. Reporte el código: " + req.correlationId });
+        }
+        res.json(JSON.parse(data));
     });
-}
+});
 
-module.exports = { app, validarToqueDefensivo };
+// --- API: Procesamiento de Toques (Validación BlueTeam) ---
+app.post('/api/toques', (req, res) => {
+    const { coordenadaX, coordenadaY, tipoGolpe } = req.body;
+    
+    // Validación estricta (BlueTeam)
+    if (typeof coordenadaX !== 'number' || typeof coordenadaY !== 'number' || typeof tipoGolpe !== 'string' || tipoGolpe.length > 50) {
+        console.warn(JSON.stringify({ level: 'warn', correlationId: req.correlationId, message: 'Intento de entrada maliciosa o inválida' }));
+        return res.status(400).json({ error: "Datos inválidos. Reporte el código: " + req.correlationId });
+    }
+
+    res.status(201).json({ mensaje: "Toque procesado correctamente", correlationId: req.correlationId });
+});
+
+// --- MANEJADOR DE ERRORES GLOBAL ---
+app.use((err, req, res, next) => {
+    console.error(JSON.stringify({ level: 'error', correlationId: req.correlationId, message: err.message }));
+    res.status(500).json({ error: "Ocurrió un error. Reporte el código: " + req.correlationId });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Sistema UNEFA corriendo en: http://localhost:${PORT}`);
+});
