@@ -9,8 +9,8 @@ Aplicación web desarrollada para la gestión administrativa, control de acceso,
 2. [Requisitos Previos](#requisitos-previos)
 3. [Instalación y Configuración Local](#instalación-y-configuración-local)
 4. [Ejecución de Pruebas Unitarias](#ejecución-de-pruebas-unitarias)
-5. [Ejecución con Docker (Contenedorización)](#ejecución-con-docker-contenedorización)
-6. [Canalización de CI/CD](#canalización-de-cicd)
+5. [Ejecución con Docker](#ejecución-con-docker)
+6. [Canalización de Integración y Despliegue](#canalización-de-integración-y-despliegue)
 7. [Endpoints API y Diagnóstico](#endpoints-api-y-diagnóstico)
 8. [Seguridad y Observabilidad](#seguridad-y-observabilidad)
 
