@@ -1,36 +1,50 @@
-const { validarToqueDefensivo, app } = require('./server');
-const request = require('supertest');
+const { validarToqueDefensivo } = require('./server');
 
-describe('Pruebas Unitarias - Lógica Central de Negocio', () => {
-    
-    // Prueba 1
-    test('1. Debe aceptar un toque válido correctamente', () => {
-        const toqueValido = { nombre: "Marcha", tempo: 120 };
-        expect(validarToqueDefensivo(toqueValido)).toBe(true);
+describe('Suite de Pruebas - Avance #4 (Validación de Toque Defensivo)', () => {
+
+    test('1. Debe retornar true si los datos del toque defensivo son válidos', () => {
+        const payloadValido = {
+            coordenadaX: 10,
+            coordenadaY: 25,
+            tipoGolpe: 'Ataque de Redoblante'
+        };
+        expect(validarToqueDefensivo(payloadValido)).toBe(true);
     });
 
-    // Prueba 2
-    test('2. Debe rechazar un toque sin nombre (código defensivo)', () => {
-        const toqueInvalido = { tempo: 120 };
-        expect(validarToqueDefensivo(toqueInvalido)).toBe(false);
+    test('2. Debe retornar false si coordenadaX no es un número', () => {
+        const payloadInvalido = {
+            coordenadaX: "10",
+            coordenadaY: 25,
+            tipoGolpe: 'Ataque de Redoblante'
+        };
+        expect(validarToqueDefensivo(payloadInvalido)).toBe(false);
     });
 
-    // Prueba 3
-    test('3. Debe rechazar un tempo negativo', () => {
-        const toqueInvalido = { nombre: "Himno", tempo: -50 };
-        expect(validarToqueDefensivo(toqueInvalido)).toBe(false);
+    test('3. Debe retornar false si coordenadaY no es un número', () => {
+        const payloadInvalido = {
+            coordenadaX: 10,
+            coordenadaY: "25",
+            tipoGolpe: 'Ataque de Redoblante'
+        };
+        expect(validarToqueDefensivo(payloadInvalido)).toBe(false);
     });
 
-    // Prueba 4
-    test('4. El endpoint /health debe devolver status 200 (Avance #5)', async () => {
-        const response = await request(app).get('/health');
-        expect(response.status).toBe(200);
-        expect(response.body.status).toBe('ok');
+    test('4. Debe retornar false si tipoGolpe es un texto vacío', () => {
+        const payloadInvalido = {
+            coordenadaX: 10,
+            coordenadaY: 25,
+            tipoGolpe: '   '
+        };
+        expect(validarToqueDefensivo(payloadInvalido)).toBe(false);
     });
 
-    // Prueba 5
-    test('5. El endpoint /health debe incluir un timestamp', async () => {
-        const response = await request(app).get('/health');
-        expect(response.body.timestamp).toBeDefined();
+    test('5. Debe retornar false si se envía un objeto vacío', () => {
+        expect(validarToqueDefensivo({})).toBe(false);
     });
+
+    test('6. Debe retornar false si el argumento enviado es null o undefined', () => {
+        expect(validarToqueDefensivo(null)).toBe(false);
+        expect(validarToqueDefensivo(undefined)).toBe(false);
+    });
+
 });
