@@ -1,27 +1,38 @@
 # Sistema Web - Banda de Guerra UNEFA (Núcleo Falcón)
 
-Aplicación web desarrollada para la gestión administrativa, control de acceso y repositorio de partituras/toques de la Banda de Guerra de la UNEFA.
+Aplicación web desarrollada para la gestión administrativa, control de acceso, repositorio de partituras/toques y monitoreo de la Banda de Guerra de la UNEFA.
 
+---
 
-## 📋 Tabla de Contenido
+## Tabla de Contenido
 1. [Arquitectura del Sistema](#arquitectura-del-sistema)
 2. [Requisitos Previos](#requisitos-previos)
 3. [Instalación y Configuración Local](#instalación-y-configuración-local)
-4. [Ejecución con Docker (Contenedorización)](#ejecución-con-docker-contenedorización)
-5. [Endpoints y Endpoints de Diagnóstico](#endpoints-y-endpoints-de-diagnóstico)
+4. [Ejecución de Pruebas Unitarias](#ejecución-de-pruebas-unitarias)
+5. [Ejecución con Docker (Contenedorización)](#ejecución-con-docker-contenedorización)
+6. [Canalización de CI/CD](#canalización-de-cicd)
+7. [Endpoints API y Diagnóstico](#endpoints-api-y-diagnóstico)
+8. [Seguridad y Observabilidad](#seguridad-y-observabilidad)
 
+---
 
-## 🏛️ Arquitectura del Sistema
-El sistema implementa un servidor backend basado en Node.js con Express, aplicando políticas de seguridad, control de acceso por autenticación y trazabilidad mediante IDs de correlación.
-# Sistema Web - UNEFA Banda de Guerra
+## Arquitectura del Sistema
 
+El sistema cuenta con un servidor backend desacoplado construido sobre **Node.js** y **Express**. Aplica validación estricta de esquemas (JSDoc), middleware para el control de acceso por roles (**RBAC**), inyección de identificadores únicos de trazabilidad (**Correlation ID**) y generación de logs estructurados en formato JSON.
 
-## 📐 Diagrama de Arquitectura (Mermaid)
+### Diagrama de Arquitectura (Mermaid)
 
 ```mermaid
 graph TD;
-    A[Usuario / Cliente] -->|Petición HTTP| B[Servidor Express (server.js)]
-    B -->|Validación JSDoc / Lógica| C{¿Datos Válidos?}
-    C -->|Sí| D[Procesar Petición / Respuesta 200/201]
-    C -->|No| E[Respuesta de Error 400/401]
-    B -->|Lectura de datos| F[toques.json]
+    A[Usuario / Cliente HTTP] -->|Petición con X-Correlation-ID| B[Middleware de Trazabilidad y Logging JSON]
+    B --> C{¿Ruta Pública o Protegida?}
+    
+    C -->|Pública / Diagnóstico| D[Endpoints /diag/ready & /diag/metrics]
+    C -->|Acceso a Sistema| E[Servicio de Autenticación /login]
+    C -->|API de Toques| F[Middleware RBAC - verificarRol]
+    
+    F -->|Permitido| G[Validación JSDoc - validarToqueDefensivo]
+    F -->|Denegado| H[Respuesta 403 Forbidden]
+    
+    G -->|Payload Válido| I[Procesar / Persistir en toques.json]
+    G -->|Payload Inválido| J[Respuesta 400 Bad Request]
