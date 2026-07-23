@@ -1,6 +1,6 @@
 # Sistema Web - Banda de Guerra UNEFA (Núcleo Falcón)
 
-Aplicación web desarrollada para la gestión administrativa, control de acceso, repositorio de partituras/toques y monitoreo de la Banda de Guerra de la UNEFA.
+Aplicación web para la gestión del repositorio musical de la Banda de Guerra de la UNEFA Nucleo Falcon, Sede Coro
 
 ---
 

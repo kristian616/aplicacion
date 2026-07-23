@@ -15,5 +15,18 @@
     "jest": "^29.7.0",
     "jsdoc": "^4.0.0",
     "supertest": "^7.0.0"
-  }
+  },
+  "description": "Aplicación web para la gestión del repositorio musical de la Banda de Guerra de la UNEFA Nucleo Falcon, Sede Coro",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kristian616/aplicacion.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/kristian616/aplicacion/issues"
+  },
+  "homepage": "https://github.com/kristian616/aplicacion#readme"
 }
