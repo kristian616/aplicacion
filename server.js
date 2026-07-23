@@ -1,155 +1,99 @@
 const express = require('express');
+const multer = require('multer');
 const path = require('path');
+const cors = require('cors');
 const fs = require('fs');
-const { randomUUID } = require('crypto'); // Módulo nativo de Node.js (Sin problemas de compatibilidad)
 
 const app = express();
 
-// --- MIDDLEWARES BASE ---
+// 1. Middlewares
+app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-/**
- * Middleware para asignación de Correlation ID y Logs Estructurados en JSON (Avance #6)
- */
-app.use((req, res, next) => {
-    req.correlationId = req.headers['x-correlation-id'] || randomUUID();
-    res.setHeader('X-Correlation-ID', req.correlationId);
+// Servir la página HTML y archivos estáticos
+app.use(express.static(path.join(__dirname)));
 
-    console.log(JSON.stringify({
-        timestamp: new Date().toISOString(),
-        level: 'info',
-        service: 'banda-de-guerra-api',
-        context: 'HTTP Request',
-        method: req.method,
-        url: req.url,
-        correlationId: req.correlationId
-    }));
+// Servir la carpeta donde se guardan los PDFs subidos
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-    next();
-});
-
-/**
- * Valida la estructura de un toque defensivo (Avance #4).
- */
-function validarToqueDefensivo(datos) {
-    if (!datos || typeof datos !== 'object') return false;
-    
-    const { coordenadaX, coordenadaY, tipoGolpe } = datos;
-    
-    const xValido = typeof coordenadaX === 'number' && !isNaN(coordenadaX);
-    const yValido = typeof coordenadaY === 'number' && !isNaN(coordenadaY);
-    const golpeValido = typeof tipoGolpe === 'string' && tipoGolpe.trim().length > 0;
-
-    return xValido && yValido && golpeValido;
-}
-
-/**
- * Middleware de Control de Acceso Basado en Roles / RBAC (Avance #6)
- */
-function verificarRol(rolRequerido) {
-    return (req, res, next) => {
-        const rolUsuario = req.headers['x-user-role'] || 'admin';
-        if (rolUsuario !== rolRequerido) {
-            return res.status(403).json({
-                error: "Acceso denegado: Permisos insuficientes",
-                correlationId: req.correlationId
-            });
+// 2. Configuración de Multer para guardar los archivos PDF
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const dir = path.join(__dirname, 'uploads', 'partituras');
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
         }
-        next();
-    };
-}
-
-// --- RUTAS DE NAVEGACIÓN Y AUTENTICACIÓN ---
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueName = Date.now() + '-' + file.originalname.replace(/\s+/g, '_');
+        cb(null, uniqueName);
+    }
 });
 
-app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-    
-    if (!username || !password) {
-        return res.status(400).send('Campos incompletos.');
+const upload = multer({ storage });
+
+// 3. Persistencia en JSON local
+const DB_FILE = path.join(__dirname, 'partituras.json');
+const leerPartituras = () => fs.existsSync(DB_FILE) ? JSON.parse(fs.readFileSync(DB_FILE)) : [];
+const guardarPartituras = (data) => fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+
+// --- RUTAS DE LA API ---
+
+// Obtener todas las partituras
+app.get('/api/partituras', (req, res) => {
+    res.json(leerPartituras());
+});
+
+// Subir una nueva partitura
+app.post('/api/partituras', upload.single('archivoPdf'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se subió ningún archivo PDF.' });
+        }
+        
+        const partituras = leerPartituras();
+        const nueva = {
+            id: Date.now(),
+            nombre: req.body.nombre,
+            familia: req.body.familia,
+            estado: 'Disponible',
+            url: `/uploads/partituras/${req.file.filename}`
+        };
+        
+        partituras.push(nueva);
+        guardarPartituras(partituras);
+        
+        res.status(201).json(nueva);
+    } catch (err) {
+        console.error("Error al procesar archivo:", err);
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+});
+
+// Eliminar partitura
+app.delete('/api/partituras/:id', (req, res) => {
+    const pass = req.headers['x-admin-password'];
+    if (pass !== 'admin123') {
+        return res.status(401).json({ error: 'Clave incorrecta' });
     }
 
-    const usuarioLimpio = username.trim();
-    const passLimpia = password.trim();
-
-    if (usuarioLimpio === 'admin' && passLimpia === '1234') {
-        res.redirect('/sistema.html');
+    let partituras = leerPartituras();
+    const item = partituras.find(p => p.id === parseInt(req.params.id));
+    
+    if (item) {
+        const filePath = path.join(__dirname, item.url);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+        partituras = partituras.filter(p => p.id !== item.id);
+        guardarPartituras(partituras);
+        res.json({ message: 'Partitura eliminada' });
     } else {
-        res.status(401).send('Credenciales incorrectas. <a href="/">Volver</a>');
+        res.status(404).json({ error: 'Partitura no encontrada' });
     }
 });
 
-app.get('/index.html', (req, res) => {
-    res.redirect('/sistema.html');
-});
-
-app.use(express.static(path.join(__dirname, 'public')));
-
-// --- FAMILIA DE RUTAS DE DIAGNÓSTICO (/diag/) (Avance #6) ---
-
-app.get('/diag/ready', (req, res) => {
-    res.status(200).json({ status: "ready", timestamp: new Date().toISOString() });
-});
-
-app.get('/diag/metrics', (req, res) => {
-    res.status(200).json({
-        service: "banda-de-guerra-api",
-        uptime: process.uptime(),
-        memoryUsage: process.memoryUsage(),
-        cpuUsage: process.cpuUsage(),
-        timestamp: new Date().toISOString(),
-        correlationId: req.correlationId
-    });
-});
-
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
-});
-
-// --- API DE TOQUES ---
-
-app.get('/api/toques', (req, res) => {
-    const filePath = path.join(__dirname, 'toques.json');
-    fs.readFile(filePath, 'utf8', (err, data) => {
-        if (err) {
-            return res.status(500).json({ error: "Error al leer archivo", correlationId: req.correlationId });
-        }
-        res.json(JSON.parse(data));
-    });
-});
-
-app.post('/api/toques', verificarRol('admin'), (req, res) => {
-    if (!validarToqueDefensivo(req.body)) {
-        return res.status(400).json({
-            error: "Payload inválido para toque defensivo",
-            correlationId: req.correlationId
-        });
-    }
-    res.status(201).json({ mensaje: "Toque procesado correctamente", correlationId: req.correlationId });
-});
-
-// --- MANEJADOR DE ERRORES CON LOGS ESTRUCTURADOS ---
-app.use((err, req, res, next) => {
-    console.error(JSON.stringify({
-        timestamp: new Date().toISOString(),
-        level: 'error',
-        service: 'banda-de-guerra-api',
-        correlationId: req.correlationId,
-        message: err.message
-    }));
-    res.status(500).json({ error: "Error interno del servidor", correlationId: req.correlationId });
-});
-
+// 4. Puerto asignado dinámicamente por Render (o 3000 si es local)
 const PORT = process.env.PORT || 3000;
-
-if (process.env.NODE_ENV !== 'test') {
-    app.listen(PORT, () => {
-        console.log(`Servidor de Banda de Guerra corriendo en el puerto ${PORT}`);
-    });
-}
-
-module.exports = { app, validarToqueDefensivo };
+app.listen(PORT, () => console.log(`✅ Servidor activo en el puerto ${PORT}`));
