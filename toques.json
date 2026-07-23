@@ -1,5 +1,5 @@
 [
-    { "nombre": "Toque de Bandera", "familia": "Vientos", "tonalidad": "Sib", "archivo": "bandera.pdf" },
+    { "nombre": "Toque de Bandera", "familia": "Vientos", "tonalidad": "Sib", "archivo": "toque de bandera.pdf" },
     { "nombre": "Marcha Victoria", "familia": "Percusión", "tonalidad": "N/A", "archivo": "victoria.pdf" },
-    { "nombre": "Himno Nacional", "familia": "Vientos", "tonalidad": "Mib", "archivo": "himno.pdf" }
+    { "nombre": "Himno Nacional", "familia": "Vientos", "tonalidad": "Mib", "archivo": "bandera.pdf" }
 ]
