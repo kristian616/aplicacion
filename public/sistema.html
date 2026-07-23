@@ -52,7 +52,7 @@
             <div id="date">Coro, Julio 2026</div>
         </header>
 
-        <!-- Formulario Oculto de Registro (Protegido con Contraseña) -->
+        <!-- Formulario Oculto de Registro -->
         <div id="panel-registro" class="card" style="display: none; margin-bottom: 25px; border: 2px solid var(--accent);">
             <h3>➕ Registrar Nueva Partitura</h3>
             <form id="formToque" style="margin-top: 15px;">
@@ -68,7 +68,6 @@
                         <option value="Ceremonial">Ceremonial</option>
                     </select>
                 </div>
-                <!-- Selector de archivo en PDF -->
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px; font-weight: 500;">Seleccionar Partitura en PDF:</label>
                     <input type="file" id="archivoPdf" accept=".pdf,application/pdf" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: white;" required>
@@ -81,7 +80,6 @@
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h3>Toques Militares Recientes</h3>
-                <!-- Botón protegido para administradores -->
                 <button onclick="verificarPassword()" class="btn-play btn-admin">🔒 Añadir Partitura</button>
             </div>
 
@@ -95,98 +93,20 @@
                     </tr>
                 </thead>
                 <tbody id="tabla-body">
-                    <!-- Las filas se generan dinámicamente desde la Base de Datos IndexedDB -->
+                    <!-- Las filas se cargan dinámicamente desde el servidor Node.js -->
                 </tbody>
             </table>
         </div>
     </main>
 
     <script>
-        const PASSWORD_ADMIN = "admin123"; // Contraseña de administración
-        let db;
+        // Usamos ruta relativa para que funcione tanto en tu PC como en Render
+        const API_URL = '/api/partituras'; 
+        const PASSWORD_ADMIN = "admin123";
 
-        // 1. Inicializar la Base de Datos del Navegador (IndexedDB)
-        const requestDB = indexedDB.open("UNEFA_Repositorio_DB", 1);
-
-        requestDB.onupgradeneeded = function(e) {
-            db = e.target.result;
-            if (!db.objectStoreNames.contains("partituras")) {
-                db.createObjectStore("partituras", { keyPath: "id", autoIncrement: true });
-            }
-        };
-
-        requestDB.onsuccess = function(e) {
-            db = e.target.result;
-            cargarPartituras();
-        };
-
-        requestDB.onerror = function(e) {
-            console.error("Error al abrir IndexedDB:", e);
-        };
-
-        // 2. Cargar datos y renderizar la tabla
-        function cargarPartituras() {
-            const tx = db.transaction("partituras", "readonly");
-            const store = tx.objectStore("partituras");
-            const request = store.getAll();
-
-            request.onsuccess = function() {
-                const lista = request.result;
-
-                // Si la BD está vacía la primera vez, cargar registros base
-                if (lista.length === 0) {
-                    inicializarDatosBase();
-                    return;
-                }
-
-                const tbody = document.getElementById('tabla-body');
-                tbody.innerHTML = "";
-
-                lista.forEach(item => {
-                    let urlFinal = item.url;
-                    
-                    // Si es un archivo cargado dinámicamente, recrear la URL del Blob
-                    if (item.esBlob && item.blobData) {
-                        urlFinal = URL.createObjectURL(item.blobData);
-                    }
-
-                    const fila = document.createElement('tr');
-                    fila.innerHTML = `
-                        <td>${item.nombre}</td>
-                        <td>${item.familia}</td>
-                        <td>${item.estado}</td>
-                        <td style="display: flex; align-items: center;">
-                            <a href="${urlFinal}" target="_blank" class="btn-play">Partitura</a>
-                            <button onclick="eliminarPartitura(${item.id}, '${item.nombre}')" class="btn-delete" title="Eliminar partitura">🗑️ Eliminar</button>
-                        </td>
-                    `;
-                    tbody.appendChild(fila);
-                });
-            };
-        }
-
-        // Datos iniciales en caso de primera ejecución
-        function inicializarDatosBase() {
-            const datosIniciales = [
-                { nombre: "Marcha N°1 - ANA MARIA CAMPOS", familia: "Percusión", estado: "Disponible", url: "/partituras/marcha1.pdf", esBlob: false },
-                { nombre: "Toque de Bandera", familia: "Vientos", estado: "Disponible", url: "/partituras/toque de bandera.pdf", esBlob: false },
-                { nombre: "Marcha N°2 - LUISA CACERES DE ARISMENDI", familia: "Vientos", estado: "Disponible", url: "/partituras/toque de bandera.pdf", esBlob: false }
-            ];
-
-            const tx = db.transaction("partituras", "readwrite");
-            const store = tx.objectStore("partituras");
-            
-            datosIniciales.forEach(item => store.add(item));
-            
-            tx.oncomplete = function() {
-                cargarPartituras();
-            };
-        }
-
-        // 3. Verificación de Contraseña para AÑADIR
+        // 1. Mostrar / Ocultar Formulario
         function verificarPassword() {
             const claveIngresada = prompt("Ingrese la contraseña de Administrador para agregar:");
-
             if (claveIngresada === null) return;
 
             if (claveIngresada === PASSWORD_ADMIN) {
@@ -201,61 +121,85 @@
             document.getElementById('panel-registro').style.display = 'none';
         }
 
-        // 4. Guardar archivo permanentemente en IndexedDB
-        document.getElementById('formToque').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const nombre = document.getElementById('nombreToque').value;
-            const familia = document.getElementById('familiaToque').value;
-            const inputArchivo = document.getElementById('archivoPdf');
-            const archivo = inputArchivo.files[0];
+        // 2. Cargar partituras desde el servidor Node.js
+        async function cargarPartituras() {
+            try {
+                const res = await fetch(API_URL);
+                const lista = await res.json();
 
-            if (!archivo) {
-                alert("Por favor selecciona un archivo PDF.");
-                return;
-            }
+                const tbody = document.getElementById('tabla-body');
+                tbody.innerHTML = "";
 
-            const nuevoRegistro = {
-                nombre: nombre,
-                familia: familia,
-                estado: "Disponible",
-                esBlob: true,
-                blobData: archivo // Guarda el PDF binario de forma permanente
-            };
-
-            const tx = db.transaction("partituras", "readwrite");
-            const store = tx.objectStore("partituras");
-            store.add(nuevoRegistro);
-
-            tx.oncomplete = function() {
-                alert(`¡La partitura "${nombre}" fue guardada permanentemente!`);
-                document.getElementById('formToque').reset();
-                cerrarFormulario();
-                cargarPartituras();
-            };
-        });
-
-        // 5. Función protegida con contraseña para ELIMINAR PERMANENTEMENTE
-        function eliminarPartitura(id, nombre) {
-            const claveIngresada = prompt(`Para eliminar "${nombre}", ingrese la contraseña de Administrador:`);
-
-            if (claveIngresada === null) return; // Si el usuario cancela
-
-            if (claveIngresada === PASSWORD_ADMIN) {
-                if (confirm(`¿Está seguro de que desea eliminar permanentemente la partitura "${nombre}"?`)) {
-                    const tx = db.transaction("partituras", "readwrite");
-                    const store = tx.objectStore("partituras");
-                    store.delete(id);
-
-                    tx.oncomplete = function() {
-                        alert(`La partitura "${nombre}" ha sido eliminada correctamente.`);
-                        cargarPartituras();
-                    };
-                }
-            } else {
-                alert("Contraseña incorrecta. No se pudo eliminar el registro.");
+                lista.forEach(item => {
+                    const fila = document.createElement('tr');
+                    fila.innerHTML = `
+                        <td>${item.nombre}</td>
+                        <td>${item.familia}</td>
+                        <td>${item.estado}</td>
+                        <td style="display: flex; align-items: center;">
+                            <a href="${item.url}" target="_blank" class="btn-play">Partitura</a>
+                            <button onclick="eliminarPartitura(${item.id}, '${item.nombre}')" class="btn-delete" title="Eliminar partitura">🗑️ Eliminar</button>
+                        </td>
+                    `;
+                    tbody.appendChild(fila);
+                });
+            } catch (error) {
+                console.error("Error al cargar partituras:", error);
             }
         }
+
+        // 3. Subir archivo al servidor usando FormData
+        document.getElementById('formToque').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData();
+            formData.append('nombre', document.getElementById('nombreToque').value);
+            formData.append('familia', document.getElementById('familiaToque').value);
+            formData.append('archivoPdf', document.getElementById('archivoPdf').files[0]);
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (res.ok) {
+                    alert('¡Partitura subida y compartida con éxito!');
+                    this.reset();
+                    cerrarFormulario();
+                    cargarPartituras();
+                } else {
+                    alert('Error al subir el archivo al servidor.');
+                }
+            } catch (error) {
+                console.error('Error enviando formulario:', error);
+            }
+        });
+
+        // 4. Eliminar partitura del servidor
+        async function eliminarPartitura(id, nombre) {
+            const claveIngresada = prompt(`Para eliminar "${nombre}", ingrese la contraseña de Administrador:`);
+            if (!claveIngresada) return;
+
+            try {
+                const res = await fetch(`${API_URL}/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'x-admin-password': claveIngresada }
+                });
+
+                if (res.ok) {
+                    alert(`La partitura "${nombre}" ha sido eliminada correctamente.`);
+                    cargarPartituras();
+                } else {
+                    alert("Contraseña incorrecta o error al eliminar.");
+                }
+            } catch (error) {
+                console.error("Error al eliminar:", error);
+            }
+        }
+
+        // Cargar partituras al abrir la página
+        cargarPartituras();
     </script>
 </body>
 </html>
